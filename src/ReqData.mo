@@ -14,8 +14,7 @@ import Iter "mo:base/Iter";
 import Blob "mo:base/Blob";
 import Debug "mo:base/Debug";
 import Text "mo:base/Text";
-import CV "mo:cbor/Value";
-import CBOR "mo:cbor/Encoder";
+import Cbor "mo:cbor";
 import Nat64 "mo:base/Nat64";
 import Array "mo:base/Array";
 import Nat8 "mo:base/Nat8";
@@ -41,48 +40,56 @@ module {
 
   /// CBOR-encode the value (including the CBOR self-describing tag)
   public func encodeCBOR(r : R) : Blob {
-    let v : CV.Value = #majorType6{ tag = 55799; value = fromR(r) };
-    
-    switch (CBOR.encode(v)) {
-      case (#ok(a)) { Blob.fromArray(a)};
+    let v : Cbor.Value = #majorType6 { tag = 55799; value = fromR(r) };
+
+    switch (Cbor.encode(v)) {
+      case (#ok(a)) { Blob.fromArray(a) };
       case (#err(e)) { Debug.trap(debug_show e) };
     };
   };
 
-  func fromR(r : R) : CV.Value {
-    #majorType5(Array.map<(Text,V),(CV.Value,CV.Value)>(r,
-      func ((k, v))  { (fromV(#string k), fromV(v)) }
-    ))
+  func fromR(r : R) : Cbor.Value {
+    #majorType5(
+      Array.map<(Text, V), (Cbor.Value, Cbor.Value)>(
+        r,
+        func((k, v)) { (fromV(#string k), fromV(v)) },
+      )
+    );
   };
-  func fromV(v : V) : CV.Value {
+  func fromV(v : V) : Cbor.Value {
     switch (v) {
-      case (#blob(b))   { #majorType2(Blob.toArray(b)) };
+      case (#blob(b)) { #majorType2(Blob.toArray(b)) };
       case (#string(t)) { #majorType3(t) };
-      case (#nat(n))    { #majorType0(Nat64.fromNat(n)) };
-      case (#array(a))  { #majorType4(Array.map(a, fromV)) };
-      case (#map(m))    { fromR(m) };
-    }
+      case (#nat(n)) { #majorType0(Nat64.fromNat(n)) };
+      case (#array(a)) { #majorType4(Array.map(a, fromV)) };
+      case (#map(m)) { fromR(m) };
+    };
   };
 
   // Also see https://github.com/dfinity/ic-hs/blob/master/src/IC/HTTP/RequestId.hs
   func hash_val(v : V) : [Nat8] {
-    encode_val(v) |> SHA256.fromArray(#sha256, _) |> Blob.toArray _
+    encode_val(v) |> SHA256.fromArray(#sha256, _) |> Blob.toArray _;
   };
 
   func encode_val(v : V) : [Nat8] {
     switch (v) {
-      case (#blob(b))   { Blob.toArray(b) };
+      case (#blob(b)) { Blob.toArray(b) };
       case (#string(t)) { Blob.toArray(Text.encodeUtf8(t)) };
-      case (#nat(n))    { leb128(n) };
-      case (#array(a))  { arrayConcat(Iter.map(a.vals(), hash_val)); };
-      case (#map(m))    {
-        let entries : Buffer.Buffer<Blob> = Buffer.fromIter(Iter.map(m.vals(), func ((k : Text, v : V)) : Blob {
-            Blob.fromArray(arrayConcat([ hash_val(#string(k)), hash_val(v) ].vals()));
-        }));
+      case (#nat(n)) { leb128(n) };
+      case (#array(a)) { arrayConcat(Iter.map(a.vals(), hash_val)) };
+      case (#map(m)) {
+        let entries : Buffer.Buffer<Blob> = Buffer.fromIter(
+          Iter.map(
+            m.vals(),
+            func((k : Text, v : V)) : Blob {
+              Blob.fromArray(arrayConcat([hash_val(#string(k)), hash_val(v)].vals()));
+            },
+          )
+        );
         entries.sort(Blob.compare); // No Array.compare, so go through blob
         arrayConcat(Iter.map(entries.vals(), Blob.toArray));
-      }
-    }
+      };
+    };
   };
 
   func leb128(nat : Nat) : [Nat8] {
@@ -95,7 +102,7 @@ module {
       };
       buf.add(Nat8.fromIntWrap(n) | 0x80);
       n /= 128;
-    }
+    };
   };
 
   func h(b1 : Blob) : Blob {
@@ -114,4 +121,4 @@ module {
     Buffer.toArray(buf);
   };
 
-}
+};

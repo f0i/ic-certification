@@ -17,14 +17,6 @@
         overlays = [ (import dfinity-sdk) ];
       };
 
-      vessel-src = pkgs.fetchFromGitHub {
-        owner = "dfinity";
-        repo = "vessel";
-        rev = "v0.7.0";
-        hash = "sha256-pQcC5RDnZOQGXdrcZolTprMEryBwbi58GqGYb61rGZQ=";
-      };
-      vessel = (import vessel-src { inherit system; }).vessel;
-
       # Generated with:
       # cd mops.nix/; nix run nixpkgs#node2nix -- -i <( echo '["ic-mops"]' ) -18
       mops = (import ./mops.nix { inherit system pkgs; }).ic-mops;
